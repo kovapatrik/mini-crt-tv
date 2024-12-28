@@ -40,7 +40,7 @@ def convert(image_path, output_name, rgb: Literal["332", "565"]):
 if __name__ == "__main__":
     file = sys.argv[1]
     rgb = "565" if sys.argv[2] == "16" else "332"
-    output_name = "ascii_golem"
+    output_name = file.split(".")[0]
     c_array = convert(file, output_name, rgb)
     with open(f"{output_name}.h", "w") as f:
         if rgb == "332":
