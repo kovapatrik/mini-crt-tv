@@ -1,24 +1,30 @@
 #include <AnimatedGIF.h>
 #include <ESP_8_BIT_GFX.h>
-#include "ascii_golem.h"
+#include "ascii_art.h"
 #include "golem_anim.h"
 #include "Philips_PM5544.h"
 #include "golem_profpic.h"
 #include "damu.h"
+#include "mario_anim.h"
 
 // Create an instance of the graphics library
 // 256*240
 ESP_8_BIT_GFX videoOut(true /* = NTSC */, 8 /* = RGB332 color */);
 AnimatedGIF gif;
+unsigned int screen;
 
 // Vertical margin to compensate for aspect ratio
-const int gif_vertical_margin = 56;
+const int golem_gif_vertical_margin = 56;
 
 // Draw a line of image to ESP_8_BIT_GFX frame buffer
 void GIFDraw(GIFDRAW *pDraw) {
   uint8_t *s;
   uint16_t *d, *usPalette, usTemp[320];
   int x, y;
+  unsigned int vertical_margin = 0;
+  if (screen == 4) {
+    vertical_margin = golem_gif_vertical_margin;
+  }
 
   usPalette = pDraw->pPalette;
   y = pDraw->iY + pDraw->y;  // current line
@@ -57,7 +63,7 @@ void GIFDraw(GIFDRAW *pDraw) {
       if (iCount)  // any opaque pixels?
       {
         for (int xOffset = 0; xOffset < iCount; xOffset++) {
-          videoOut.drawPixel(pDraw->iX + x + xOffset, gif_vertical_margin + y, usTemp[xOffset]);
+          videoOut.drawPixel(pDraw->iX + x + xOffset, vertical_margin + y, usTemp[xOffset]);
         }
         x += iCount;
         iCount = 0;
@@ -81,7 +87,7 @@ void GIFDraw(GIFDRAW *pDraw) {
     // Translate the 8-bit pixels through the RGB565 palette (already byte reversed)
     for (x = 0; x < pDraw->iWidth; x++) {
       // videoOut.drawPixel(x,vertical_margin + y, usPalette[*s++]);
-      videoOut.drawPixel(x, gif_vertical_margin + y, *s++);
+      videoOut.drawPixel(x, vertical_margin + y, *s++);
     }
   }
 } /* GIFDraw() */
@@ -89,8 +95,7 @@ void GIFDraw(GIFDRAW *pDraw) {
 
 unsigned long lastChange;
 const unsigned long changeInterval = 5000;  // Change screen every 5 seconds
-const unsigned int numScreens = 6;
-unsigned int screen;
+const unsigned int numScreens = 7;
 
 void setup() {
 
@@ -111,8 +116,11 @@ void setup() {
 void print_channel() {
   // Print out the "channel" number in the top right in light green
   // pad it with a zero if it's a single digit
-  videoOut.setCursor(256 - 49, 24);
-  videoOut.setTextColor(0x71);
+  // with a black backdrop
+  videoOut.fillRect(203, 20, 30, 22, 0x00);
+
+  videoOut.setCursor(207, 24);
+  videoOut.setTextColor(0x30);
   videoOut.setTextSize(2);
   videoOut.setTextWrap(false);
   if (screen < 10) {
@@ -131,14 +139,14 @@ void static_noise() {
 }
 
 void golem_1() {
-  videoOut.drawGrayscaleBitmap(0, 0, (const uint8_t *)ascii_golem_bitmap, videoOut.width(), videoOut.height());
+  videoOut.drawGrayscaleBitmap(0, 0, (const uint8_t *)ascii_art_bitmap, videoOut.width(), videoOut.height());
 }
 
 void golem_anim() {
   if (gif.open((uint8_t *)golem_gif, golem_gif_len, GIFDraw)) {
     while (gif.playFrame(true, NULL)) {
-      videoOut.waitForFrame();
       print_channel();
+      videoOut.waitForFrame();
     }
     videoOut.waitForFrame();
     gif.close();
@@ -157,6 +165,17 @@ void damu() {
   videoOut.drawGrayscaleBitmap(0, 0, (const uint8_t *)damu_bitmap, videoOut.width(), videoOut.height());
 }
 
+void mario_anim() {
+  if (gif.open((uint8_t *)mario_gif, mario_gif_len, GIFDraw)) {
+    while (gif.playFrame(true, NULL)) {
+      videoOut.waitForFrame();
+      print_channel();
+    }
+    videoOut.waitForFrame();
+    gif.close();
+  }
+}
+
 void loop() {
   // Wait for the next frame to minimize chance of visible tearing
   videoOut.waitForFrame();
@@ -171,16 +190,19 @@ void loop() {
       golem_1();
       break;
     case 2:
-      golem_anim();
+      damu();
       break;
     case 3:
       philips_pm554();
       break;
     case 4:
-      golem_profpic();
+      golem_anim();
       break;
     case 5:
-      damu();
+      golem_profpic();
+      break;
+    case 6:
+      mario_anim();
       break;
   };
 
